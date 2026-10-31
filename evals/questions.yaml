@@ -1,0 +1,45 @@
+# Known-answer questions over the ASV. Phrase them the way an agent would ask,
+# not by copying the note title, so they test meaning rather than keywords.
+# `expect` is one path or a list; any of them in the top k counts as a pass.
+
+- question: How many open tickets should each coder have at any one time?
+  expect: Workspace/Grok/Engineering/Coder Workload Rule.md
+
+- question: Which Rokumon game repositories were made public and which stayed private?
+  expect: Workspace/Grok/Engineering/2026-10-30 Rokumon Games Public Visibility.md
+
+- question: Should we run our own GitHub Actions runners to save minutes, and on which host?
+  expect:
+    - Workspace/Grok/Engineering/2026-10-30 Self-Hosted Actions Runners.md
+    - Workspace/Grok/Engineering/Self-Hosted Runner Runbook.md
+
+- question: How do we install the self-hosted runner service on srv733907?
+  expect: Workspace/Grok/Engineering/Self-Hosted Runner Runbook.md
+
+- question: Where do package download numbers get stored in the Control Plane, and who owns it?
+  expect: Workspace/Grok/Engineering/Control Plane Downloads Analytics.md
+
+- question: What is the book tracking toolkit for Audible purchases and ISBN logging?
+  expect: Workspace/Grok/Engineering/Bookworm Toolkit.md
+
+- question: How many X research tickets should grok-web always have open?
+  expect: Workspace/Grok/Engineering/2026-10-30 Grok-web Aggressive Boarding.md
+
+- question: Which git identity and author email must Grok use when committing?
+  expect: Workspace/Grok/Engineering/Grok-Commit-Identity-Rule.md
+
+- question: Was Tailscale evaluated for connecting the VPS and the local machines?
+  expect: Workspace/Grok/Engineering/Tailscale Evaluation and Implementation Guide - 2026-10-17.md
+
+- question: What checks must a Rokumon game pass before it ships?
+  expect: Workspace/Grok/Engineering/Rokumon Game Quality Gate.md
+
+- question: Which AI design tools made the shortlist?
+  expect:
+    - Workspace/Grok/Engineering/Design AI Tools Shortlist.md
+    - Workspace/Grok/Engineering/Design AI Tools Evaluation.md
+
+- question: Is the vector index the source of truth, or the ASV?
+  expect:
+    - Workspace/Grok/Engineering/2026-10-30 Qdrant ASV Engineering Memory.md
+    - Workspace/Grok/Engineering/Agent Tooling/Qdrant.md
