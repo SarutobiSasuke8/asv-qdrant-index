@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import subprocess
 from pathlib import Path
 
@@ -62,11 +63,16 @@ def _delete_path(client: QdrantClient, path: str) -> None:
     )
 
 
-def ingest(client: QdrantClient, asv_root: Path, full: bool = False, dry_run: bool = False) -> dict:
+def ingest(
+    client: QdrantClient, asv_root: Path, full: bool = False, dry_run: bool = False, only: str | None = None
+) -> dict:
+    """Diff-ingest. `only` narrows to one glob and then never deletes other paths."""
     head = subprocess.run(
         ["git", "-C", str(asv_root), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
     ).stdout.strip()
     files = select_paths(asv_root)
+    if only:
+        files = [f for f in files if fnmatch.fnmatch(f.relative_to(asv_root).as_posix(), only)]
     shas = tracked_shas(asv_root)
     existing = {} if dry_run else indexed_shas(client)
     stats = {"asv_head": head, "files": len(files), "changed": 0, "unchanged": 0, "removed": 0, "chunks": 0}
@@ -88,7 +94,7 @@ def ingest(client: QdrantClient, asv_root: Path, full: bool = False, dry_run: bo
             _delete_path(client, path)  # chunk count may have shrunk
         batch.extend(chunks)
 
-    for gone in sorted(set(existing) - current):
+    for gone in [] if only else sorted(set(existing) - current):
         stats["removed"] += 1
         if not dry_run:
             _delete_path(client, gone)

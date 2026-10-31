@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from qdrant_client import QdrantClient
@@ -35,15 +36,18 @@ def main(argv: list[str] | None = None) -> int:
     ing.add_argument("asv_root", type=Path)
     ing.add_argument("--full", action="store_true", help="re-embed every file")
     ing.add_argument("--dry-run", action="store_true", help="select and chunk only")
+    ing.add_argument("--only", help="limit to one path glob; skips deletion of other paths")
     s = sub.add_parser("search", help="top-k search")
     s.add_argument("query")
     s.add_argument("-k", type=int, default=5)
     sm = sub.add_parser("smoke", help="ingest then prove a known design note is found")
     sm.add_argument("asv_root", type=Path)
+    sm.add_argument("--only", help="limit the ingest to one path glob, e.g. 'Workspace/Grok/Engineering/*'")
     args = p.parse_args(argv)
+    sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles default to cp1252
 
     if args.cmd == "ingest" and args.dry_run:
-        print(json.dumps(ingest(None, args.asv_root.resolve(), dry_run=True), indent=2))
+        print(json.dumps(ingest(None, args.asv_root.resolve(), dry_run=True, only=args.only), indent=2))
         return 0
 
     client = client_for(args)
@@ -52,12 +56,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{COLLECTION}: {'created' if created else 'exists'} ({MODEL}, {DIM}-d, cosine)")
     elif args.cmd == "ingest":
         ensure_collection(client)
-        print(json.dumps(ingest(client, args.asv_root.resolve(), full=args.full), indent=2))
+        print(json.dumps(ingest(client, args.asv_root.resolve(), full=args.full, only=args.only), indent=2))
     elif args.cmd == "search":
         print(json.dumps(search(client, args.query, args.k), indent=2, ensure_ascii=False))
     elif args.cmd == "smoke":
         ensure_collection(client)
-        stats = ingest(client, args.asv_root.resolve())
+        stats = ingest(client, args.asv_root.resolve(), only=args.only)
         hits = search(client, SMOKE_QUERY, 5)
         print(json.dumps({"ingest": stats, "query": SMOKE_QUERY, "hits": hits}, indent=2, ensure_ascii=False))
         ok = any(h["path"] == SMOKE_EXPECT for h in hits)

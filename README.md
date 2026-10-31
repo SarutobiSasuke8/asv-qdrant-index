@@ -57,6 +57,10 @@ asv-qdrant search "what blocked the self-hosted runner install" -k 5
 asv-qdrant smoke /path/to/asv                       # ingest, then prove the Qdrant design note is in the top 5
 ```
 
+`--only '<glob>'` limits `ingest` or `smoke` to one path glob, for example `--only 'Workspace/Grok/Engineering/*'`. A scoped run never deletes points outside its glob.
+
+Cost: on 2026-10-31 the allowlist matched 1,867 files and 4,933 chunks. On a laptop CPU the model embeds about 4 to 5 chunks a second, so the first full ingest takes roughly 20 minutes; later runs only re-embed changed files. The engineering design notes alone (27 files, 155 chunks) take under a minute.
+
 Add `--local` before the subcommand to run against an in-memory Qdrant with no credentials, for example `asv-qdrant --local smoke /path/to/asv`. Nothing persists.
 
 Diff ingest: a file is re-embedded when its blob sha differs from the one stored; its old points are deleted first so a shorter file leaves no stale chunks. Files that left the allowlist or the repo are deleted from the collection.
