@@ -70,7 +70,8 @@ def test_payload_and_ids(tmp_path):
     root = _repo(tmp_path, {"p.md": "---\nupdated: 2026-10-30\n---\n# Title\n\n## A\none\n\n## B\ntwo\n"})
     chunks = chunk_file(root / "p.md", root)
     payload = chunks[0].payload()
-    assert set(payload) == {"path", "title", "updated", "source_sha", "chunk_index", "excerpt"}
+    assert {"path", "title", "updated", "source_sha", "chunk_index", "excerpt"} <= set(payload)
+    assert {"kind", "sender", "date", "date_int", "schema"} <= set(payload)
     assert payload["updated"] == "2026-10-30" and payload["title"] == "Title"
     assert len({c.point_id for c in chunks}) == len(chunks)
     assert chunks[0].point_id == chunk_file(root / "p.md", root)[0].point_id
@@ -97,3 +98,30 @@ def test_tracked_shas_match_index(tmp_path):
         capture_output=True, text=True, check=True,
     ).stdout.strip()
     assert tracked_shas(root)["Workspace/Grok/Engineering/A B.md"] == expected
+
+
+def test_classify_kinds_sender_date():
+    from asv_qdrant.core import classify
+    m = "Workspace/Messages/claude-code/"
+    assert classify("Workspace/Grok/Engineering/X.md", {}) [0] == "design-note"
+    assert classify("Workspace/Grok/Chief of Staff/Portfolio/Portfolio Map.md", {})[0] == "portfolio"
+    assert classify(m + "2026-10-30-2300-claude-code-ahm-49-restack-reply.md", {}) == ("reply", "", "2026-10-30")
+    assert classify(m + "2026-10-29-0907-lingxi-engineer-grok-bot-drop-56.md", {"type": "ticket"})[0] == "ticket"
+    assert classify(m + "2026-10-30-cos-runner-fyi.md", {"from": "Chief-Of-Staff-Grok-Bot"})[:2] == (
+        "fyi", "chief-of-staff-grok-bot")
+    assert classify(m + "ROLE.md", {"created": "2026-10-04"}) == ("message", "", "2026-10-04")
+
+
+def test_noise_files_not_selected(tmp_path):
+    root = _repo(tmp_path, {
+        "Workspace/Messages/claude-code/2026-10-31-0115-claude-code-intake-log.md": "# L\nx",
+        "Workspace/Messages/chief-of-staff-grok-bot/2026-10-31-daily-digest.md": "# D\nx",
+        "Workspace/Grok/Engineering/MCP Download Stats/mcp-downloads-2026-10-29.md": "# S\nx",
+        "Workspace/Grok/Engineering/MCP Download Stats/README.md": "# R\nx",
+        "Workspace/Messages/claude-code/2026-10-31-0115-claude-code-qdrant-reply.md": "# Q\nx",
+    })
+    rels = sorted(p.relative_to(root).as_posix() for p in select_paths(root))
+    assert rels == [
+        "Workspace/Grok/Engineering/MCP Download Stats/README.md",
+        "Workspace/Messages/claude-code/2026-10-31-0115-claude-code-qdrant-reply.md",
+    ]
