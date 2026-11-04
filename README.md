@@ -121,6 +121,44 @@ Unregister-ScheduledTask -TaskName "ASV Qdrant daily ingest" -Confirm:$false   #
 
 07:30 Dublin is before Lingxi's portfolio watch (08:53) and daily assign (about 10:15).
 
+## Daily update (Linux, template only)
+
+Install this package in a virtual environment and put its `bin` directory on
+`PATH`. `sh scripts/daily-update.sh --mirror /path/to/dedicated-asv-mirror`
+refreshes a clean `main` mirror with a fast-forward only, runs incremental
+ingest, then prints index status. It refuses local changes or divergence rather
+than resetting a checkout. The default mirror is
+`$HOME/.local/share/asv-qdrant/asv-mirror`; `ASV_MIRROR` overrides it.
+The operator must provide Git read access for the private ASV repository.
+
+`sh scripts/daily-update.sh --dry-run --mirror /path/to/existing-asv-checkout`
+does not clone, fetch, instantiate a Qdrant client, load the embedding model or
+make network calls. It needs no keys and reports selected file and chunk counts.
+Because it cannot consult the cluster, these are candidate totals, not a count
+of changes relative to the live index. The checkout is not modified.
+
+Live runs read `QDRANT_URL` and `QDRANT_API_KEY` from the environment only. The
+URL must use HTTPS with explicit `:443`. No embedding API key is needed: this
+project uses the existing local fastembed model, whose first live run may
+download model weights. Do not put values in scripts, logs or workflow files.
+
+`deploy/github-actions/asv-qdrant-daily.yml` is a template, not an active
+workflow. After review and merge, Alexei can copy it into the private ASV
+repository's `.github/workflows/`, set repository variable
+`ASV_QDRANT_INDEX_REF` to the reviewed full 40-character commit SHA, and set
+repository secrets `QDRANT_URL` and `QDRANT_API_KEY`. It requires runner labels
+`[self-hosted, linux, vps733907]`, Python 3.12 and outbound package/model/Qdrant
+access. The public indexer checkout needs no extra GitHub secret; the ASV
+checkout uses the workflow's read-only token without persisting it.
+
+The template runs daily at 07:30 UTC (07:30 Dublin in winter, 08:30 in summer)
+and supports manual dispatch, defaulting to offline preview. Live ingest is
+serialised and followed by `asv-qdrant status`. It ingests the checkout from
+Actions directly, so it does not need a second authenticated fetch. Installing
+the template enables scheduled writes to Qdrant; installation, secrets and any
+change to the laptop schedule remain Alexei's decision. This PR installs none
+of them and makes no claim of runner execution.
+
 ## Evals
 
 `evals/questions.yaml` holds known-answer questions, phrased the way an agent would ask rather than copied from note titles. `asv-qdrant eval` reports which ones find an acceptable path in the top k. Re-run it after changing the scope, the noise list or the model, and add a case whenever a search misses something it should have found.
