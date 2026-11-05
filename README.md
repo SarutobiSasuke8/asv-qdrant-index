@@ -121,6 +121,49 @@ Unregister-ScheduledTask -TaskName "ASV Qdrant daily ingest" -Confirm:$false   #
 
 07:30 Dublin is before Lingxi's portfolio watch (08:53) and daily assign (about 10:15).
 
+## Runner host checklist
+
+1. On `srv733907`, confirm the GitHub runner has labels
+   `[self-hosted, linux, vps733907]`, Python 3.12 and outbound access for
+   packages, model weights and Qdrant. Give the host Git read access to the
+   private ASV repository if you plan to refresh a mirror outside Actions.
+2. Clone the public indexer and check out the reviewed full commit SHA. Install
+   it into a dedicated virtual environment and preview an existing ASV
+   checkout before enabling the schedule.
+
+   ```bash
+   git clone https://github.com/SarutobiSasuke8/asv-qdrant-index.git
+   cd asv-qdrant-index
+   git checkout --detach <reviewed-commit-sha>
+   python3.12 -m venv .venv
+   .venv/bin/pip install -e '.[test]'
+   .venv/bin/python -m pytest -q
+   PATH="$PWD/.venv/bin:$PATH" sh scripts/daily-update.sh --dry-run --mirror /path/to/existing-asv-checkout
+   ```
+
+   The preview selects and chunks tracked notes offline. It reports candidate
+   totals and leaves the checkout untouched. It needs no Qdrant credentials
+   or embedding model.
+3. After review and merge, copy `deploy/github-actions/asv-qdrant-daily.yml`
+   into the private ASV repository's `.github/workflows/` only when ready
+   to enable scheduled ingest. Set the repository variable
+   `ASV_QDRANT_INDEX_REF` to the reviewed full 40-character commit SHA.
+   Configure repository secrets named `QDRANT_URL` and `QDRANT_API_KEY`.
+   Use HTTPS with explicit `:443` in `QDRANT_URL`; the Linux live path rejects
+   URLs without it. The local fastembed model needs no embedding API key.
+4. Dispatch the installed workflow with `dry_run` selected to confirm the
+   labels, private checkout, venv and chunk counts on the host. The workflow
+   uses a read-only GitHub token and leaves checkout credentials out of Git
+   config. Live runs are serialised and finish with `asv-qdrant status`.
+
+The template runs at 07:30 UTC daily (07:30 Dublin in winter, 08:30 in summer).
+For a manual live run outside Actions, export the two Qdrant variables securely,
+put the venv on `PATH` and run
+`sh scripts/daily-update.sh --mirror /path/to/dedicated-asv-mirror`.
+The script refreshes a clean `main` checkout with a fast-forward only. The
+default mirror is `$HOME/.local/share/asv-qdrant/asv-mirror`; `ASV_MIRROR`
+overrides it. Installation and the first live run remain operator steps.
+
 ## Evals
 
 `evals/questions.yaml` holds known-answer questions, phrased the way an agent would ask rather than copied from note titles. `asv-qdrant eval` reports which ones find an acceptable path in the top k. Re-run it after changing the scope, the noise list or the model, and add a case whenever a search misses something it should have found.

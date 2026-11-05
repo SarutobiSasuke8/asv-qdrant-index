@@ -1,0 +1,60 @@
+# TEMPLATE ONLY: operator installs in the private ASV repository after review.
+name: ASV Qdrant daily ingest
+on:
+  schedule:
+    - cron: '30 7 * * *' # UTC: 07:30 Dublin winter, 08:30 summer
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Select and chunk offline, without updating Qdrant
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: asv-qdrant-daily
+  cancel-in-progress: false
+jobs:
+  ingest:
+    runs-on: [self-hosted, linux, vps733907]
+    timeout-minutes: 60
+    steps:
+      - name: Require an operator-pinned tool revision
+        env:
+          TOOL_REF: ${{ vars.ASV_QDRANT_INDEX_REF }}
+        run: |
+          [[ "$TOOL_REF" =~ ^[0-9a-f]{40}$ ]] || { echo 'Set ASV_QDRANT_INDEX_REF to a reviewed commit SHA'; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          path: asv
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: SarutobiSasuke8/asv-qdrant-index
+          ref: ${{ vars.ASV_QDRANT_INDEX_REF }}
+          path: indexer
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install indexer in an isolated environment
+        run: |
+          python -m venv "$RUNNER_TEMP/asv-qdrant-venv"
+          "$RUNNER_TEMP/asv-qdrant-venv/bin/pip" install -e ./indexer
+      - name: Offline preview
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: |
+          export PATH="$RUNNER_TEMP/asv-qdrant-venv/bin:$PATH"
+          sh indexer/scripts/daily-update.sh --dry-run --mirror "$GITHUB_WORKSPACE/asv"
+      - name: Incremental ingest and status
+        if: github.event_name == 'schedule' || !inputs.dry_run
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+        run: |
+          export PATH="$RUNNER_TEMP/asv-qdrant-venv/bin:$PATH"
+          # Checkout already refreshed the ASV, including private-repo access.
+          # Do not fetch with persisted credentials on the self-hosted runner.
+          case "$QDRANT_URL" in https://*:443|https://*:443/) ;; *) echo 'QDRANT_URL requires HTTPS and :443'; exit 2 ;; esac
+          asv-qdrant ingest "$GITHUB_WORKSPACE/asv"
+          asv-qdrant status
