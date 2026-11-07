@@ -27,7 +27,7 @@ Each point carries `kind`, `sender` and `date`:
 |---|---|
 | `design-note` | anything under `Workspace/Grok/Engineering/` |
 | `portfolio` | the Portfolio Map |
-| `blocker`, `fyi`, `reply`, `ticket`, `claim` | the message file name (`completion` counts as `reply`, `request` as `ticket`), then frontmatter `type: ticket` |
+| `blocker`, `fyi`, `reply`, `ticket`, `claim` | the message file name (`completion` counts as `reply`, `request` as `ticket`), then frontmatter `type: ticket` or `type: request` as a fallback |
 | `message` | everything else |
 
 `sender` is frontmatter `from:` in lower case. `date` is the `YYYY-MM-DD` prefix of the file name, else frontmatter `date`, `created` or `updated`.
